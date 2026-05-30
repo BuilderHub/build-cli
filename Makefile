@@ -5,10 +5,10 @@ LDFLAGS := -s -w -X github.com/builderhub/build-cli/internal/cmd.version=$(VERSI
 .PHONY: build install test lint clean
 
 build:
-	go build -ldflags "$(LDFLAGS)" -o bin/$(BINARY) .
+	go build -ldflags "$(LDFLAGS)" -o bin/$(BINARY) ./cmd/builderhub
 
 install:
-	go install -ldflags "$(LDFLAGS)" .
+	go install -ldflags "$(LDFLAGS)" ./cmd/builderhub
 
 test:
 	go test ./...

@@ -3,28 +3,31 @@ package config
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
 
 const (
-	DefaultAPIURL     = "https://api.builder-hub.dev"
-	DefaultProfile    = "default"
-	ConfigDirName     = "builderhub"
-	ConfigFileName    = "config.yaml"
-	EnvAPIURL         = "BUILDERHUB_API_URL"
-	EnvToken          = "BUILDERHUB_TOKEN"
+	DefaultDomain  = "builder-hub.dev"
+	DefaultProfile = "default"
+	ConfigDirName  = "builderhub"
+	ConfigFileName = "config.yaml"
+	EnvDomain      = "BUILDERHUB_DOMAIN"
+	EnvToken       = "BUILDERHUB_TOKEN"
 )
 
 var (
-	ErrProfileNotFound = errors.New("profile not found")
+	ErrProfileNotFound  = errors.New("profile not found")
 	ErrUnknownConfigKey = errors.New("unknown config key")
+	ErrInvalidDomain    = errors.New("invalid domain")
 )
 
 type Profile struct {
-	APIURL       string `yaml:"api_url,omitempty"`
+	Domain       string `yaml:"domain,omitempty"`
 	Organization string `yaml:"organization,omitempty"`
 	AccessToken  string `yaml:"access_token,omitempty"`
 	RefreshToken string `yaml:"refresh_token,omitempty"`
@@ -109,7 +112,7 @@ func Save(f *File) error {
 }
 
 func defaultProfile() Profile {
-	return Profile{APIURL: DefaultAPIURL}
+	return Profile{Domain: DefaultDomain}
 }
 
 func defaultFile() *File {
@@ -129,8 +132,8 @@ func (f *File) Profile(name string) (Profile, error) {
 	if !ok {
 		return Profile{}, fmt.Errorf("%w: %q", ErrProfileNotFound, name)
 	}
-	if p.APIURL == "" {
-		p.APIURL = DefaultAPIURL
+	if p.Domain == "" {
+		p.Domain = DefaultDomain
 	}
 	return p, nil
 }
@@ -159,10 +162,17 @@ func (f *File) SetKey(profileName, key, value string) error {
 	if !isKnownConfigKey(key) {
 		return fmt.Errorf("%w: %q", ErrUnknownConfigKey, key)
 	}
+	if key == "domain" {
+		normalized, err := NormalizeDomain(value)
+		if err != nil {
+			return err
+		}
+		value = normalized
+	}
 	return f.UpdateProfile(profileName, func(p *Profile) {
 		switch key {
-		case "api-url", "api_url":
-			p.APIURL = value
+		case "domain":
+			p.Domain = value
 		case "organization", "org":
 			p.Organization = value
 		case "access-token", "access_token":
@@ -177,24 +187,56 @@ func (f *File) SetKey(profileName, key, value string) error {
 
 func isKnownConfigKey(key string) bool {
 	switch key {
-	case "api-url", "api_url", "organization", "org", "access-token", "access_token", "refresh-token", "refresh_token", "api-key", "api_key":
+	case "domain", "organization", "org", "access-token", "access_token", "refresh-token", "refresh_token", "api-key", "api_key":
 		return true
 	default:
 		return false
 	}
 }
 
-func ResolveAPIURL(flagValue, profileValue string) string {
-	if v := flagValue; v != "" {
+func NormalizeDomain(input string) (string, error) {
+	s := strings.TrimSpace(input)
+	if s == "" {
+		return "", fmt.Errorf("%w: empty", ErrInvalidDomain)
+	}
+	if strings.Contains(s, "://") {
+		u, err := url.Parse(s)
+		if err != nil {
+			return "", fmt.Errorf("%w: %v", ErrInvalidDomain, err)
+		}
+		s = u.Host
+	}
+	s = strings.TrimSuffix(s, "/")
+	s = strings.TrimPrefix(s, "api.")
+	if s == "" {
+		return "", fmt.Errorf("%w: empty after normalization", ErrInvalidDomain)
+	}
+	return s, nil
+}
+
+func APIURLFromDomain(domain string) string {
+	d := domain
+	if d == "" {
+		d = DefaultDomain
+	}
+	return "https://api." + d
+}
+
+func ResolveDomain(domainFlag string, profile Profile) string {
+	if v := strings.TrimSpace(domainFlag); v != "" {
 		return v
 	}
-	if v := os.Getenv(EnvAPIURL); v != "" {
+	if v := strings.TrimSpace(os.Getenv(EnvDomain)); v != "" {
 		return v
 	}
-	if profileValue != "" {
-		return profileValue
+	if profile.Domain != "" {
+		return profile.Domain
 	}
-	return DefaultAPIURL
+	return DefaultDomain
+}
+
+func ResolveAPIURL(domainFlag string, profile Profile) string {
+	return APIURLFromDomain(ResolveDomain(domainFlag, profile))
 }
 
 func ResolveToken(flagValue string, profile Profile, envOnly bool) string {
@@ -211,19 +253,6 @@ func ResolveToken(flagValue string, profile Profile, envOnly bool) string {
 		return profile.AccessToken
 	}
 	return profile.APIKey
-}
-
-func LooksLikeJWT(token string) bool {
-	parts := 0
-	dots := 0
-	for i := 0; i < len(token); i++ {
-		if token[i] == '.' {
-			dots++
-		} else {
-			parts++
-		}
-	}
-	return dots == 2 && len(token) > 10
 }
 
 func IsAPIKey(token string) bool {

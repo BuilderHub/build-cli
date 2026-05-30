@@ -28,7 +28,7 @@ type runtime struct {
 var currentRuntime *runtime
 
 var (
-	flagAPIURL       string
+	flagDomain       string
 	flagProfile      string
 	flagOrganization string
 	flagToken        string
@@ -60,7 +60,7 @@ func Execute() error {
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&flagAPIURL, "api-url", "", "BuilderHub API base URL")
+	rootCmd.PersistentFlags().StringVar(&flagDomain, "domain", "", "BuilderHub instance domain (API at https://api.<domain>)")
 	rootCmd.PersistentFlags().StringVar(&flagProfile, "profile", "", "Configuration profile name")
 	rootCmd.PersistentFlags().StringVarP(&flagOrganization, "organization", "o", "", "Default organization (namespace) for builder commands")
 	rootCmd.PersistentFlags().StringVar(&flagToken, "token", "", "Bearer token override (JWT or bh_ API key)")
@@ -89,13 +89,13 @@ func buildRuntime() (*runtime, error) {
 	}
 	profile, err := cfg.Profile(profileName)
 	if err != nil {
-		profile = config.Profile{APIURL: config.DefaultAPIURL}
+		profile = config.Profile{Domain: config.DefaultDomain}
 	}
 	fmtOut, err := output.ParseFormat(flagOutput)
 	if err != nil {
 		return nil, err
 	}
-	apiURL := config.ResolveAPIURL(flagAPIURL, profile.APIURL)
+	apiURL := config.ResolveAPIURL(flagDomain, profile)
 	org := flagOrganization
 	if org == "" {
 		org = profile.Organization
