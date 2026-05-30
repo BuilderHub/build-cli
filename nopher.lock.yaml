@@ -1,21 +1,70 @@
 schema: 1
 go: 1.25.0
 modules:
+    github.com/fsnotify/fsnotify:
+        version: v1.9.0
+        hash: sha256-lOZIJLI1kbeqUE4zIdXsP1feiPTUmILq77v2gg2rdG4=
+        url: https://proxy.golang.org/github.com/fsnotify/fsnotify/@v/v1.9.0.zip
+        rev: ae0e7923765f64fb8061396db7edebb558cf6093
+    github.com/go-viper/mapstructure/v2:
+        version: v2.4.0
+        hash: sha256-M+A5jjTspLG4ydkTGN076HGBGu5uKrq8gsAigNzKKWo=
+        url: https://proxy.golang.org/github.com/go-viper/mapstructure/v2/@v/v2.4.0.zip
+        rev: b9794a5f0e73d425210d6614ed833067029155f5
     github.com/inconshreveable/mousetrap:
         version: v1.1.0
         hash: sha256-UmZ03mJNfbEIz+dlPvEQzN/Ze8hQJiVCJIFVZ5KO0kM=
         url: https://proxy.golang.org/github.com/inconshreveable/mousetrap/@v/v1.1.0.zip
         rev: 4e8053ee7ef85a6bd26368364a6d27f1641c1d21
+    github.com/pelletier/go-toml/v2:
+        version: v2.2.4
+        hash: sha256-ghYr57hQd/O+Sb/g8eAfMIuclVTHKpgKIqNEMvlIhfA=
+        url: https://proxy.golang.org/github.com/pelletier/go-toml/v2/@v/v2.2.4.zip
+        rev: ee07c9203b72060f12e31c04ace80e8a187d5a67
+    github.com/sagikazarmark/locafero:
+        version: v0.11.0
+        hash: sha256-bCqb35Vn9jyuv0dpTZSs1DULHU1p8TwxiPTn6Ck59qU=
+        url: https://proxy.golang.org/github.com/sagikazarmark/locafero/@v/v0.11.0.zip
+        rev: d051b254767db64f7c9b392375a86f2385879606
+    github.com/sourcegraph/conc:
+        version: v0.3.1-0.20240121214520-5f936abd7ae8
+        hash: sha256-bbVv4oX3i6mUp31nbXkLHbhaR8yJSKQtTC9spiALlBM=
+        url: https://proxy.golang.org/github.com/sourcegraph/conc/@v/v0.3.1-0.20240121214520-5f936abd7ae8.zip
+        rev: 5f936abd7ae87036af1f75c95fb9d0daaf00116b
+    github.com/spf13/afero:
+        version: v1.15.0
+        hash: sha256-0DoLvOh+6qHCPwwCdnB7stWfRu/uh119fx1XAgG+bh8=
+        url: https://proxy.golang.org/github.com/spf13/afero/@v/v1.15.0.zip
+        rev: 399bb34ad9fd8a252ad1d8bfaef96279b66dc774
+    github.com/spf13/cast:
+        version: v1.10.0
+        hash: sha256-fHuif5l5ramAwqafay/fe0zh8rdm4kXApHFvVGrX3c4=
+        url: https://proxy.golang.org/github.com/spf13/cast/@v/v1.10.0.zip
+        rev: fc73346bfc4e6597bc520fb6eea04360299e77d2
     github.com/spf13/cobra:
         version: v1.10.2
         hash: sha256-oAqub81jHg/eUsmGBEUv9w4bc8O4pWDWjbFa/14mhy0=
         url: https://proxy.golang.org/github.com/spf13/cobra/@v/v1.10.2.zip
         rev: 88b30ab89da2d0d0abb153818746c5a2d30eccec
     github.com/spf13/pflag:
-        version: v1.0.9
-        hash: sha256-g5EBiNhzX4SkioCreDUe2sC1aYlvKzokTGlqB9qape0=
-        url: https://proxy.golang.org/github.com/spf13/pflag/@v/v1.0.9.zip
-        rev: 10438578954bba2527fe5cae3684d4532b064bbe
+        version: v1.0.10
+        hash: sha256-oka4ydPaqH1sY0zf7hvff6U9WBfu70+gxtpD7dEt5Mo=
+        url: https://proxy.golang.org/github.com/spf13/pflag/@v/v1.0.10.zip
+        rev: 0491e5702ad2bb108bc519a5221bcc0f52aa9564
+    github.com/spf13/viper:
+        version: v1.21.0
+        hash: sha256-QJbkzNu3QCfEnw3+3m1nGTBTsNHB7M5XVDzz2sx7JJ4=
+        url: https://proxy.golang.org/github.com/spf13/viper/@v/v1.21.0.zip
+        rev: 394040caccbdf5821fa6839386a35f0fb1b1ee9e
+    github.com/subosito/gotenv:
+        version: v1.6.0
+        hash: sha256-FC2z3SMo50TBV+hc8ykdAnATt5+SpFmE+GD+OLwPH40=
+        url: https://proxy.golang.org/github.com/subosito/gotenv/@v/v1.6.0.zip
+        rev: 14a05352a5cf0f66fd7cbce114374f56065891f0
+    go.yaml.in/yaml/v3:
+        version: v3.0.4
+        hash: sha256-Axfa5W6qnplURnyHaP1qibogBfFTTiwm/OUWOtjS7zE=
+        url: https://proxy.golang.org/go.yaml.in/yaml/v3/@v/v3.0.4.zip
     golang.org/x/sys:
         version: v0.44.0
         hash: sha256-8foQUoCOa9brnFNywFOyNwpYJTL6xdakYA56b6sZD/M=
@@ -24,6 +73,10 @@ modules:
         version: v0.43.0
         hash: sha256-DRLdd/LGIPI25ZQh1gT2vNH5ISpAg6HA7BNCXGe8boE=
         url: https://proxy.golang.org/golang.org/x/term/@v/v0.43.0.zip
+    golang.org/x/text:
+        version: v0.28.0
+        hash: sha256-RiWeFBaufsat8YZ8X5+rMq8EdqFI48lfHfuxNPSs9I0=
+        url: https://proxy.golang.org/golang.org/x/text/@v/v0.28.0.zip
     gopkg.in/yaml.v3:
         version: v3.0.1
         hash: sha256-qrj7xOYwDqCOav4crqGKIckMefSJ9SxT4vIEMfGpoBU=
