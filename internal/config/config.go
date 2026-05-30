@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"gopkg.in/yaml.v3"
+	"github.com/spf13/viper"
 )
 
 const (
@@ -25,16 +25,16 @@ var (
 )
 
 type Profile struct {
-	APIURL       string `yaml:"api_url,omitempty"`
-	Organization string `yaml:"organization,omitempty"`
-	AccessToken  string `yaml:"access_token,omitempty"`
-	RefreshToken string `yaml:"refresh_token,omitempty"`
-	APIKey       string `yaml:"api_key,omitempty"`
+	APIURL       string `mapstructure:"api_url" yaml:"api_url,omitempty"`
+	Organization string `mapstructure:"organization" yaml:"organization,omitempty"`
+	AccessToken  string `mapstructure:"access_token" yaml:"access_token,omitempty"`
+	RefreshToken string `mapstructure:"refresh_token" yaml:"refresh_token,omitempty"`
+	APIKey       string `mapstructure:"api_key" yaml:"api_key,omitempty"`
 }
 
 type File struct {
-	CurrentProfile string             `yaml:"current_profile"`
-	Profiles       map[string]Profile `yaml:"profiles"`
+	CurrentProfile string             `mapstructure:"current_profile" yaml:"current_profile"`
+	Profiles       map[string]Profile `mapstructure:"profiles" yaml:"profiles"`
 }
 
 func ConfigPath() (string, error) {
@@ -56,22 +56,52 @@ func ConfigDir() (string, error) {
 	return filepath.Join(home, ".config", ConfigDirName), nil
 }
 
-func Load() (*File, error) {
+func newConfigViper() (*viper.Viper, error) {
+	dir, err := ConfigDir()
+	if err != nil {
+		return nil, err
+	}
 	path, err := ConfigPath()
 	if err != nil {
 		return nil, err
 	}
-	data, err := os.ReadFile(path)
+
+	v := viper.New()
+	v.SetConfigName(strings.TrimSuffix(ConfigFileName, filepath.Ext(ConfigFileName)))
+	v.SetConfigType("yaml")
+	v.AddConfigPath(dir)
+	v.SetConfigFile(path)
+
+	v.SetEnvPrefix("BUILDERHUB")
+	v.AutomaticEnv()
+	_ = v.BindEnv("api_url")
+	_ = v.BindEnv("token")
+
+	v.SetDefault("current_profile", DefaultProfile)
+	v.SetDefault("profiles", map[string]any{
+		DefaultProfile: map[string]any{
+			"api_url": DefaultAPIURL,
+		},
+	})
+
+	return v, nil
+}
+
+func readConfigViper() (*viper.Viper, error) {
+	v, err := newConfigViper()
 	if err != nil {
-		if os.IsNotExist(err) {
-			return defaultFile(), nil
-		}
 		return nil, err
 	}
-	var f File
-	if err := yaml.Unmarshal(data, &f); err != nil {
-		return nil, fmt.Errorf("parse config: %w", err)
+	if err := v.ReadInConfig(); err != nil {
+		var notFound viper.ConfigFileNotFoundError
+		if !errors.As(err, &notFound) && !os.IsNotExist(err) {
+			return nil, fmt.Errorf("read config: %w", err)
+		}
 	}
+	return v, nil
+}
+
+func normalizeFile(f *File) {
 	if f.Profiles == nil {
 		f.Profiles = map[string]Profile{}
 	}
@@ -81,6 +111,18 @@ func Load() (*File, error) {
 	if _, ok := f.Profiles[f.CurrentProfile]; !ok {
 		f.Profiles[f.CurrentProfile] = defaultProfile()
 	}
+}
+
+func Load() (*File, error) {
+	v, err := readConfigViper()
+	if err != nil {
+		return nil, err
+	}
+	var f File
+	if err := v.Unmarshal(&f); err != nil {
+		return nil, fmt.Errorf("parse config: %w", err)
+	}
+	normalizeFile(&f)
 	return &f, nil
 }
 
@@ -102,11 +144,25 @@ func Save(f *File) error {
 	if err != nil {
 		return err
 	}
-	data, err := yaml.Marshal(f)
+
+	v, err := newConfigViper()
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, data, 0o600)
+	if err := v.ReadInConfig(); err != nil {
+		var notFound viper.ConfigFileNotFoundError
+		if !errors.As(err, &notFound) && !os.IsNotExist(err) {
+			return fmt.Errorf("read config: %w", err)
+		}
+	}
+
+	v.Set("current_profile", f.CurrentProfile)
+	v.Set("profiles", f.Profiles)
+
+	if err := v.WriteConfigAs(path); err != nil {
+		return err
+	}
+	return os.Chmod(path, 0o600)
 }
 
 func defaultProfile() Profile {
@@ -188,12 +244,19 @@ func isKnownConfigKey(key string) bool {
 	}
 }
 
+func envViper() (*viper.Viper, error) {
+	return newConfigViper()
+}
+
 func ResolveAPIURL(apiURLFlag string, profile Profile) string {
 	if v := strings.TrimRight(strings.TrimSpace(apiURLFlag), "/"); v != "" {
 		return v
 	}
-	if v := strings.TrimRight(strings.TrimSpace(os.Getenv(EnvAPIURL)), "/"); v != "" {
-		return v
+	v, err := envViper()
+	if err == nil {
+		if envURL := strings.TrimRight(strings.TrimSpace(v.GetString("api_url")), "/"); envURL != "" {
+			return envURL
+		}
 	}
 	if profile.APIURL != "" {
 		return profile.APIURL
@@ -205,8 +268,11 @@ func ResolveToken(flagValue string, profile Profile, envOnly bool) string {
 	if v := flagValue; v != "" {
 		return v
 	}
-	if v := os.Getenv(EnvToken); v != "" {
-		return v
+	v, err := envViper()
+	if err == nil {
+		if envToken := v.GetString("token"); envToken != "" {
+			return envToken
+		}
 	}
 	if envOnly {
 		return ""
