@@ -12,7 +12,7 @@ func TestLoadSaveRoundtrip(t *testing.T) {
 
 	f := defaultFile()
 	f.Profiles["default"] = Profile{
-		Domain:       "localhost",
+		APIURL:       "http://localhost:8090",
 		Organization: "org-1",
 		AccessToken:  "jwt-token",
 		RefreshToken: "refresh",
@@ -29,8 +29,8 @@ func TestLoadSaveRoundtrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Profile: %v", err)
 	}
-	if p.Domain != "localhost" {
-		t.Fatalf("Domain = %q", p.Domain)
+	if p.APIURL != "http://localhost:8090" {
+		t.Fatalf("APIURL = %q", p.APIURL)
 	}
 	if p.Organization != "org-1" {
 		t.Fatalf("Organization = %q", p.Organization)
@@ -46,14 +46,14 @@ func TestLoadSaveRoundtrip(t *testing.T) {
 	}
 }
 
-func TestSetKeyDomain(t *testing.T) {
+func TestSetKeyAPIURL(t *testing.T) {
 	f := defaultFile()
-	if err := f.SetKey("default", "domain", "https://api.builder-hub.dev"); err != nil {
+	if err := f.SetKey("default", "api-url", "https://api.builder-hub.dev/"); err != nil {
 		t.Fatalf("SetKey: %v", err)
 	}
 	p, _ := f.Profile("default")
-	if p.Domain != "builder-hub.dev" {
-		t.Fatalf("Domain = %q", p.Domain)
+	if p.APIURL != "https://api.builder-hub.dev" {
+		t.Fatalf("APIURL = %q", p.APIURL)
 	}
 }
 
@@ -68,55 +68,22 @@ func TestSetKeyOrganization(t *testing.T) {
 	}
 }
 
-func TestNormalizeDomain(t *testing.T) {
-	tests := []struct {
-		in   string
-		want string
-	}{
-		{"builder-hub.dev", "builder-hub.dev"},
-		{"https://builder-hub.dev", "builder-hub.dev"},
-		{"api.builder-hub.dev", "builder-hub.dev"},
-		{"https://api.mycompany.io/", "mycompany.io"},
-	}
-	for _, tc := range tests {
-		got, err := NormalizeDomain(tc.in)
-		if err != nil {
-			t.Fatalf("NormalizeDomain(%q): %v", tc.in, err)
-		}
-		if got != tc.want {
-			t.Fatalf("NormalizeDomain(%q) = %q, want %q", tc.in, got, tc.want)
-		}
-	}
-	if _, err := NormalizeDomain(""); err == nil {
-		t.Fatal("expected error for empty domain")
-	}
-}
-
-func TestAPIURLFromDomain(t *testing.T) {
-	if got := APIURLFromDomain("builder-hub.dev"); got != "https://api.builder-hub.dev" {
-		t.Fatalf("got %q", got)
-	}
-	if got := APIURLFromDomain(""); got != "https://api.builder-hub.dev" {
-		t.Fatalf("default got %q", got)
-	}
-}
-
 func TestResolveAPIURL(t *testing.T) {
-	t.Setenv(EnvDomain, "")
-	profile := Profile{Domain: "mycompany.io"}
+	t.Setenv(EnvAPIURL, "")
+	profile := Profile{APIURL: "https://api.mycompany.io"}
 
-	if got := ResolveAPIURL("other.io", profile); got != "https://api.other.io" {
+	if got := ResolveAPIURL("https://api.other.io", profile); got != "https://api.other.io" {
 		t.Fatalf("flag: got %q", got)
 	}
 	if got := ResolveAPIURL("", profile); got != "https://api.mycompany.io" {
 		t.Fatalf("profile: got %q", got)
 	}
-	t.Setenv(EnvDomain, "env.io")
+	t.Setenv(EnvAPIURL, "https://api.env.io")
 	if got := ResolveAPIURL("", Profile{}); got != "https://api.env.io" {
 		t.Fatalf("env: got %q", got)
 	}
-	t.Setenv(EnvDomain, "")
-	if got := ResolveAPIURL("", Profile{}); got != "https://api.builder-hub.dev" {
+	t.Setenv(EnvAPIURL, "")
+	if got := ResolveAPIURL("", Profile{}); got != DefaultAPIURL {
 		t.Fatalf("default: got %q", got)
 	}
 }

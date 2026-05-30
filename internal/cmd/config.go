@@ -27,7 +27,7 @@ func configSetCmd() *cobra.Command {
 			if key == "profile" {
 				rt().cfgFile.CurrentProfile = value
 				if _, err := rt().cfgFile.Profile(value); err != nil {
-					rt().cfgFile.SetProfile(value, config.Profile{Domain: config.DefaultDomain})
+					rt().cfgFile.SetProfile(value, config.Profile{APIURL: config.DefaultAPIURL})
 				}
 			} else {
 				if err := rt().cfgFile.SetKey(rt().profileName, key, value); err != nil {
@@ -56,11 +56,9 @@ func configViewCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			domain := config.ResolveDomain(flagDomain, profile)
 			fmt.Fprintf(cmd.OutOrStdout(), "Config file: %s\n", path)
 			fmt.Fprintf(cmd.OutOrStdout(), "Profile:     %s\n", rt().profileName)
-			fmt.Fprintf(cmd.OutOrStdout(), "Domain:      %s\n", domain)
-			fmt.Fprintf(cmd.OutOrStdout(), "API URL:     %s\n", config.APIURLFromDomain(domain))
+			fmt.Fprintf(cmd.OutOrStdout(), "API URL:     %s\n", config.ResolveAPIURL(flagAPIURL, profile))
 			fmt.Fprintf(cmd.OutOrStdout(), "Organization:%s\n", profile.Organization)
 			if profile.AccessToken != "" {
 				fmt.Fprintln(cmd.OutOrStdout(), "Auth:        JWT session")

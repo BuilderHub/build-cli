@@ -20,8 +20,8 @@ make build
 ## Quick start
 
 ```bash
-# Configure your BuilderHub instance (API at https://api.<domain>)
-builderhub config set domain builder-hub.dev
+# Configure API URL (default: https://api.builder-hub.dev)
+builderhub config set api-url https://api.builder-hub.dev
 
 # Authenticate (stores JWT in ~/.config/builderhub/config.yaml)
 builderhub auth login --email you@example.com
@@ -42,23 +42,21 @@ builderhub builder delete my-builder --yes
 
 Config is stored at `$XDG_CONFIG_HOME/builderhub/config.yaml` (default: `~/.config/builderhub/config.yaml`).
 
-The CLI targets `https://api.<domain>` for all API requests. Configure the instance domain once; there is no separate API URL setting.
-
 | Setting | Config key | Environment variable |
 |---------|------------|----------------------|
-| Instance domain | `domain` | `BUILDERHUB_DOMAIN` |
+| API URL | `api-url` | `BUILDERHUB_API_URL` |
 | Bearer token | `api-key` or JWT via login | `BUILDERHUB_TOKEN` |
 | Default organization | `organization` | — |
 
 ```bash
-builderhub config set domain builder-hub.dev
+builderhub config set api-url https://api.builder-hub.dev
 builderhub config set organization org_abc123
 builderhub config view
 ```
 
 Global flags override config:
 
-- `--domain` — BuilderHub instance domain (API at `https://api.<domain>`)
+- `--api-url` — BuilderHub API base URL
 - `--profile` — named profile
 - `-o, --organization` — default organization namespace
 - `--token` — bearer token override (JWT or `bh_...` API key)
@@ -66,10 +64,9 @@ Global flags override config:
 
 ### Local development
 
-Point at a local instance by setting the domain to `localhost` (requires build-api at `https://api.localhost`, e.g. via Tilt or ingress):
-
 ```bash
-builderhub config set domain localhost
+builderhub config set api-url http://localhost:8090
+# or: export BUILDERHUB_API_URL=http://localhost:8090
 ```
 
 ## Commands
@@ -132,7 +129,7 @@ builderhub completion bash
 
 ```bash
 export BUILDERHUB_TOKEN=bh_...
-export BUILDERHUB_DOMAIN=builder-hub.dev
+export BUILDERHUB_API_URL=https://api.builder-hub.dev
 builderhub -o org_abc123 -O json builder list
 ```
 
