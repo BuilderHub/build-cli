@@ -150,3 +150,49 @@ func TestValidateScopes(t *testing.T) {
 		t.Fatal("invalid scope accepted")
 	}
 }
+
+func TestRegister(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/auth/register" || r.Method != http.MethodPost {
+			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.Path)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"user":          map[string]any{"id": "u2", "email": "new@b.com", "name": "Bob"},
+			"access_token":  "access-2",
+			"refresh_token": "refresh-2",
+			"expires_in":    7200,
+		})
+	}))
+	defer srv.Close()
+
+	c := New(srv.URL, &memStore{}, "")
+	result, err := c.Register(context.Background(), "new@b.com", "secret", "Bob")
+	if err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+	if result.AccessToken != "access-2" {
+		t.Fatalf("AccessToken = %q", result.AccessToken)
+	}
+	if result.User.Name != "Bob" {
+		t.Fatalf("Name = %q", result.User.Name)
+	}
+}
+
+func TestHealthCheck(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/health" || r.Method != http.MethodGet {
+			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.Path)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"status": "ok"})
+	}))
+	defer srv.Close()
+
+	c := New(srv.URL, &memStore{}, "")
+	status, err := c.HealthCheck(context.Background())
+	if err != nil {
+		t.Fatalf("HealthCheck: %v", err)
+	}
+	if status != "ok" {
+		t.Fatalf("status = %q", status)
+	}
+}
