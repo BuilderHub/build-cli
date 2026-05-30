@@ -1,0 +1,33 @@
+version: 2
+project_name: builderhub
+
+builds:
+  - main: ./cmd/builderhub
+    binary: builderhub
+    ldflags:
+      - -s -w
+      - -X github.com/builderhub/build-cli/internal/cmd.version={{.Version}}
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - formats:
+      - tar.gz
+    format_overrides:
+      - goos: darwin
+        formats:
+          - tar.gz
+          - zip
+
+checksum:
+  name_template: checksums.txt
+
+release:
+  github:
+    owner: builderhub
+    name: build-cli
+  mode: append

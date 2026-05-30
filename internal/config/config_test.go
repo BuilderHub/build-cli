@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -85,5 +86,74 @@ func TestResolveAPIURL(t *testing.T) {
 	t.Setenv(EnvAPIURL, "")
 	if got := ResolveAPIURL("", Profile{}); got != DefaultAPIURL {
 		t.Fatalf("default: got %q", got)
+	}
+}
+
+func TestResolveToken(t *testing.T) {
+	t.Setenv(EnvToken, "")
+	profile := Profile{AccessToken: "jwt-from-profile", APIKey: "bh_key123"}
+
+	if got := ResolveToken("flag-token", profile, false); got != "flag-token" {
+		t.Fatalf("flag: got %q", got)
+	}
+	t.Setenv(EnvToken, "env-token")
+	if got := ResolveToken("", profile, false); got != "env-token" {
+		t.Fatalf("env: got %q", got)
+	}
+	t.Setenv(EnvToken, "")
+	if got := ResolveToken("", profile, false); got != "jwt-from-profile" {
+		t.Fatalf("profile access token: got %q", got)
+	}
+	profile.AccessToken = ""
+	if got := ResolveToken("", profile, false); got != "bh_key123" {
+		t.Fatalf("profile api key: got %q", got)
+	}
+	if got := ResolveToken("", profile, true); got != "" {
+		t.Fatalf("envOnly: got %q", got)
+	}
+}
+
+func TestIsAPIKey(t *testing.T) {
+	if !IsAPIKey("bh_abc123") {
+		t.Fatal("expected bh_ prefix to be API key")
+	}
+	if IsAPIKey("jwt-token") {
+		t.Fatal("JWT should not be detected as API key")
+	}
+	if IsAPIKey("bh") {
+		t.Fatal("short token should not be API key")
+	}
+}
+
+func TestSetKeyAPIKey(t *testing.T) {
+	f := defaultFile()
+	if err := f.SetKey("default", "api-key", "bh_secret"); err != nil {
+		t.Fatalf("SetKey: %v", err)
+	}
+	p, _ := f.Profile("default")
+	if p.APIKey != "bh_secret" {
+		t.Fatalf("APIKey = %q", p.APIKey)
+	}
+}
+
+func TestSetKeyUnknown(t *testing.T) {
+	f := defaultFile()
+	err := f.SetKey("default", "unknown-key", "value")
+	if err == nil {
+		t.Fatal("expected error for unknown key")
+	}
+	if !errors.Is(err, ErrUnknownConfigKey) {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestProfileNotFound(t *testing.T) {
+	f := defaultFile()
+	_, err := f.Profile("missing")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !errors.Is(err, ErrProfileNotFound) {
+		t.Fatalf("error = %v", err)
 	}
 }
