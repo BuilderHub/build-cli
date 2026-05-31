@@ -6,6 +6,27 @@ The `builderhub` CLI is the one-stop shop for authenticating, managing organizat
 
 ## Install
 
+The easiest way (macOS and Linux):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/builderhub/build-cli/main/scripts/install.sh | bash
+```
+
+The script automatically:
+- Detects your OS and architecture
+- Downloads the latest release from GitHub
+- Removes the macOS quarantine attribute (if needed)
+- Installs `builderhub` to a sensible location (`/usr/local/bin`, `~/.local/bin`, or `~/bin`)
+- Prints instructions to add the install directory to your `PATH` if necessary
+
+To install a specific version:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/builderhub/build-cli/main/scripts/install.sh | bash -s -- --version v0.5.0
+```
+
+With Go:
+
 ```bash
 go install github.com/builderhub/build-cli/cmd/builderhub@latest
 ```
