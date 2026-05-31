@@ -56,10 +56,10 @@ func (f builderSpecFlags) spec() (client.BuilderSpec, error) {
 }
 
 func addBuilderSpecFlags(cmd *cobra.Command, f *builderSpecFlags) {
-	cmd.Flags().StringVar(&f.mode, "mode", "", "Builder mode: ephemeral, persistent, sleepy")
+	cmd.Flags().StringVar(&f.mode, "mode", "", "Builder mode (persistent or sleepy)")
 	cmd.Flags().Int32Var(&f.replicas, "replicas", 0, "Replica count")
 	cmd.Flags().Int32Var(&f.idleTimeout, "idle-timeout", 0, "Idle timeout in seconds")
-	cmd.Flags().StringVar(&f.templateRef, "template-ref", "", "Template reference")
+	cmd.Flags().StringVar(&f.templateRef, "template-ref", "", "Template reference (required for create; use 'template list' to see options)")
 	cmd.Flags().StringSliceVar(&f.labels, "label", nil, "Label key=value (repeatable)")
 }
 
@@ -114,6 +114,12 @@ func builderCreateCmd() *cobra.Command {
 			if specFlags.mode == "" {
 				return fmt.Errorf("--mode is required")
 			}
+			if specFlags.mode != "persistent" && specFlags.mode != "sleepy" {
+				return fmt.Errorf("--mode must be one of: persistent, sleepy")
+			}
+			if specFlags.templateRef == "" {
+				return fmt.Errorf("--template-ref is required (create a template first with 'template create')")
+			}
 			spec, err := specFlags.spec()
 			if err != nil {
 				return err
@@ -139,6 +145,9 @@ func builderUpdateCmd() *cobra.Command {
 			org, err := requireOrganization()
 			if err != nil {
 				return err
+			}
+			if specFlags.mode != "" && specFlags.mode != "persistent" && specFlags.mode != "sleepy" {
+				return fmt.Errorf("--mode must be one of: persistent, sleepy")
 			}
 			spec, err := specFlags.spec()
 			if err != nil {

@@ -167,6 +167,61 @@ func PrintAPIKey(w io.Writer, format Format, key client.UserAPIKey) error {
 	return nil
 }
 
+func PrintTemplates(w io.Writer, format Format, templates []client.Template) error {
+	if format != FormatTable {
+		return Write(w, format, templates)
+	}
+	tw := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
+	fmt.Fprintln(tw, "NAME\tIMAGE\tCACHE\tARCH\tROOTLESS")
+	for _, t := range templates {
+		cache := ""
+		if t.Spec.CacheConfig != nil {
+			cache = t.Spec.CacheConfig.Type
+			if t.Spec.CacheConfig.PVC != nil {
+				cache += " " + t.Spec.CacheConfig.PVC.Size
+			}
+		}
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%v\n",
+			t.Name, t.Spec.BuildkitImage, cache, t.Spec.Arch, t.Spec.Rootless)
+	}
+	return tw.Flush()
+}
+
+func PrintTemplate(w io.Writer, format Format, t *client.Template) error {
+	if format != FormatTable {
+		return Write(w, format, t)
+	}
+	fmt.Fprintf(w, "Name:      %s\n", t.Name)
+	fmt.Fprintf(w, "Namespace: %s\n", t.Namespace)
+	fmt.Fprintf(w, "Image:     %s\n", t.Spec.BuildkitImage)
+	fmt.Fprintf(w, "Rootless:  %v\n", t.Spec.Rootless)
+	fmt.Fprintf(w, "Arch:      %s\n", t.Spec.Arch)
+	if t.Spec.CacheConfig != nil {
+		fmt.Fprintf(w, "Cache:     %s\n", t.Spec.CacheConfig.Type)
+		if t.Spec.CacheConfig.PVC != nil {
+			fmt.Fprintf(w, "  PVC size: %s\n", t.Spec.CacheConfig.PVC.Size)
+		}
+	}
+	if t.Spec.Resources != nil {
+		fmt.Fprintln(w, "Resources:")
+		if len(t.Spec.Resources.Requests) > 0 {
+			fmt.Fprint(w, "  Requests: ")
+			for k, v := range t.Spec.Resources.Requests {
+				fmt.Fprintf(w, "%s=%s ", k, v)
+			}
+			fmt.Fprintln(w)
+		}
+		if len(t.Spec.Resources.Limits) > 0 {
+			fmt.Fprint(w, "  Limits:   ")
+			for k, v := range t.Spec.Resources.Limits {
+				fmt.Fprintf(w, "%s=%s ", k, v)
+			}
+			fmt.Fprintln(w)
+		}
+	}
+	return nil
+}
+
 func formatUnix(ts int64) string {
 	if ts <= 0 {
 		return "-"

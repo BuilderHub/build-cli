@@ -71,6 +71,7 @@ func init() {
 		apiKeyCmd(),
 		orgCmd(),
 		builderCmd(),
+		templateCmd(),
 		configCmd(),
 		healthCmd(),
 		versionCmd(),

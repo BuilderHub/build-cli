@@ -2,7 +2,7 @@
 
 Command-line interface for the [BuilderHub](https://builder-hub.dev) platform.
 
-The `builderhub` CLI is the one-stop shop for authenticating, managing organizations, builders, and API keys against the [build-api](https://github.com/builderhub/build-api) REST service.
+The `builderhub` CLI is the one-stop shop for authenticating, managing organizations, templates, builders, and API keys against the [build-api](https://github.com/builderhub/build-api) REST service.
 
 ## Install
 
@@ -29,9 +29,10 @@ builderhub auth login --email you@example.com
 # Set default organization for builder commands
 builderhub config set organization org_abc123
 
-# Builder CRUD
+# Builder CRUD (builders are created from templates)
+builderhub template create my-template --image moby/buildkit:master-rootless --cache-type pvc --cache-size 25Gi
 builderhub builder list
-builderhub builder create my-builder --mode sleepy --replicas 1 --label size=medium
+builderhub builder create my-builder --mode sleepy --template-ref my-template --replicas 1
 builderhub builder get my-builder
 builderhub builder update my-builder --mode persistent
 builderhub builder wake my-builder
@@ -87,11 +88,11 @@ API key management requires a JWT session (run `auth login` first). API keys can
 
 ```bash
 builderhub api-key list
-builderhub api-key create ci-key --scope builders:read --scope builders:write
+builderhub api-key create ci-key --scope builders:read --scope builders:write --scope templates:read
 builderhub api-key delete <id> --yes
 ```
 
-Valid scopes: `organizations:read`, `organizations:write`, `builders:read`, `builders:write`.
+Valid scopes: `organizations:read`, `organizations:write`, `builders:read`, `builders:write`, `templates:read`, `templates:write`.
 
 ### Organizations
 
@@ -104,14 +105,23 @@ builderhub org delete <id> --yes
 builderhub org members list <org-id>
 ```
 
+### Templates
+
+```bash
+builderhub template list
+builderhub template get <name>
+builderhub template create <name> --image moby/buildkit:master-rootless --cache-type pvc --cache-size 25Gi
+builderhub template delete <name> [--yes]
+```
+
 ### Builders
 
-Builder namespace is the organization ID.
+Builders are created from templates (use `template create` first for custom resources).
 
 ```bash
 builderhub builder list
 builderhub builder get <name>
-builderhub builder create <name> --mode sleepy|persistent|ephemeral [--replicas N] [--idle-timeout SEC] [--template-ref REF] [--label k=v]
+builderhub builder create <name> --mode sleepy|persistent --template-ref <template-name> [--replicas N] [--idle-timeout SEC] [--label k=v]
 builderhub builder update <name> [spec flags]
 builderhub builder delete <name> [--yes]
 builderhub builder wake <name>
