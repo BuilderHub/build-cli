@@ -142,10 +142,12 @@ Builders are created from templates (use `template create` first for custom reso
 ```bash
 builderhub builder list
 builderhub builder get <name>
-builderhub builder create <name> --mode sleepy|persistent --template-ref <template-name> [--replicas N] [--idle-timeout SEC] [--label k=v] [--expose]
+builderhub builder create <name> --mode sleepy|persistent --template-ref <template-name> [--replicas N] [--idle-timeout SEC] [--label k=v] [--expose] [--connect] [--default]
 builderhub builder update <name> [spec flags] [--expose]
 builderhub builder delete <name> [--yes]
 builderhub builder wake <name>
+builderhub builder credentials <name> [--dir PATH]
+builderhub builder connect <name> [--default] [--force] [--buildx-name NAME] [--dir PATH]
 ```
 
 #### Exposed builders and buildx
@@ -157,12 +159,7 @@ builderhub builder create my-builder --mode sleepy --template-ref tpl --expose
 builderhub builder update my-builder --expose
 ```
 
-Mint new mTLS client credentials or configure local docker buildx. These commands require a JWT session (`auth login`); API keys cannot call the credentials endpoint.
-
-```bash
-builderhub builder credentials my-builder [--dir PATH]
-builderhub builder connect my-builder [--default] [--force] [--buildx-name NAME] [--dir PATH]
-```
+Mint new mTLS client credentials or configure local docker buildx with `builder credentials` and `builder connect`. These commands require a JWT session (`auth login`); API keys cannot call the credentials endpoint.
 
 One-shot create with buildx setup:
 
