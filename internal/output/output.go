@@ -110,10 +110,18 @@ func PrintBuilders(w io.Writer, format Format, builders []client.Builder) error 
 		return Write(w, format, builders)
 	}
 	tw := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
-	fmt.Fprintln(tw, "NAME\tMODE\tPHASE\tENDPOINT\tREPLICAS")
+	fmt.Fprintln(tw, "NAME\tMODE\tPHASE\tEXPOSED\tEXTERNAL\tREPLICAS")
 	for _, b := range builders {
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%d\n",
-			b.Name, b.Spec.Mode, b.Status.Phase, b.Status.Endpoint, b.Spec.Replicas)
+		exposed := "no"
+		if b.Spec.Expose != nil && *b.Spec.Expose {
+			exposed = "yes"
+		}
+		external := b.Status.ExternalEndpoint
+		if external == "" {
+			external = "-"
+		}
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%d\n",
+			b.Name, b.Spec.Mode, b.Status.Phase, exposed, external, b.Spec.Replicas)
 	}
 	return tw.Flush()
 }
@@ -130,6 +138,12 @@ func PrintBuilder(w io.Writer, format Format, b *client.Builder) error {
 	fmt.Fprintf(w, "Idle (s):   %d\n", b.Spec.IdleTimeoutSeconds)
 	fmt.Fprintf(w, "Phase:      %s\n", b.Status.Phase)
 	fmt.Fprintf(w, "Endpoint:   %s\n", b.Status.Endpoint)
+	if b.Spec.Expose != nil {
+		fmt.Fprintf(w, "Expose:     %t\n", *b.Spec.Expose)
+	}
+	if b.Status.ExternalEndpoint != "" {
+		fmt.Fprintf(w, "External:   %s\n", b.Status.ExternalEndpoint)
+	}
 	fmt.Fprintf(w, "Node port:  %d\n", b.Status.NodePort)
 	if len(b.Spec.Labels) > 0 {
 		fmt.Fprintln(w, "Labels:")

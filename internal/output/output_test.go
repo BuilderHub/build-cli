@@ -94,10 +94,11 @@ func TestPrintUserJSON(t *testing.T) {
 }
 
 func TestPrintBuildersTable(t *testing.T) {
+	exposed := true
 	builders := []client.Builder{{
 		Name: "b1",
-		Spec: client.BuilderSpec{Mode: "sleepy", Replicas: 2},
-		Status: client.BuilderStatus{Phase: "Ready", Endpoint: "10.0.0.1"},
+		Spec: client.BuilderSpec{Mode: "sleepy", Replicas: 2, Expose: &exposed},
+		Status: client.BuilderStatus{Phase: "Ready", Endpoint: "10.0.0.1", ExternalEndpoint: "tcp://exposed.example.com:443"},
 	}}
 
 	var buf bytes.Buffer
@@ -105,7 +106,7 @@ func TestPrintBuildersTable(t *testing.T) {
 		t.Fatalf("PrintBuilders: %v", err)
 	}
 	out := buf.String()
-	for _, want := range []string{"NAME", "b1", "sleepy", "Ready", "10.0.0.1", "2"} {
+	for _, want := range []string{"NAME", "b1", "sleepy", "Ready", "yes", "tcp://exposed.example.com:443", "2"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("output missing %q:\n%s", want, out)
 		}

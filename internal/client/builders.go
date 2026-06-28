@@ -13,12 +13,23 @@ type BuilderSpec struct {
 	Replicas           int32             `json:"replicas,omitempty"`
 	IdleTimeoutSeconds int32             `json:"idle_timeout_seconds,omitempty"`
 	Labels             map[string]string `json:"labels,omitempty"`
+	Expose             *bool             `json:"expose,omitempty"`
 }
 
 type BuilderStatus struct {
-	Endpoint string
-	NodePort int32
-	Phase    string
+	Endpoint         string
+	ExternalEndpoint string
+	NodePort         int32
+	Phase            string
+}
+
+type BuilderCredentials struct {
+	CAPEM         string
+	ClientCertPEM string
+	ClientKeyPEM  string
+	Endpoint      string
+	ServerName    string
+	ExpiresAt     int64
 }
 
 type Builder struct {
@@ -89,6 +100,18 @@ func (c *Client) DeleteBuilder(ctx context.Context, namespace, name string) erro
 	return c.Do(ctx, http.MethodDelete, path, nil, nil)
 }
 
+func (c *Client) GenerateBuilderCredentials(ctx context.Context, namespace, name string) (*BuilderCredentials, error) {
+	path := fmt.Sprintf("/v1/namespaces/%s/builders/%s/credentials", url.PathEscape(namespace), url.PathEscape(name))
+	var resp map[string]any
+	if err := c.Do(ctx, http.MethodPost, path, map[string]any{
+		"namespace": namespace,
+		"name":      name,
+	}, &resp); err != nil {
+		return nil, err
+	}
+	return mapBuilderCredentials(resp), nil
+}
+
 func (c *Client) WakeBuilder(ctx context.Context, namespace, name string) (*Builder, error) {
 	path := fmt.Sprintf("/v1/namespaces/%s/builders/%s/wake", url.PathEscape(namespace), url.PathEscape(name))
 	var resp map[string]any
@@ -135,13 +158,17 @@ func mapBuilderSpec(raw map[string]any) BuilderSpec {
 			labels[k] = fmt.Sprint(v)
 		}
 	}
-	return BuilderSpec{
+	spec := BuilderSpec{
 		TemplateRef:        stringField(raw, "template_ref", "templateRef"),
 		Mode:               stringField(raw, "mode"),
 		Replicas:           int32(intField(raw, "replicas")),
 		IdleTimeoutSeconds: int32(intField(raw, "idle_timeout_seconds", "idleTimeoutSeconds")),
 		Labels:             labels,
 	}
+	if expose, ok := boolField(raw, "expose"); ok {
+		spec.Expose = &expose
+	}
+	return spec
 }
 
 func mapBuilderStatus(raw map[string]any) BuilderStatus {
@@ -149,8 +176,39 @@ func mapBuilderStatus(raw map[string]any) BuilderStatus {
 		return BuilderStatus{}
 	}
 	return BuilderStatus{
-		Endpoint: stringField(raw, "endpoint"),
-		NodePort: int32(intField(raw, "node_port", "nodePort")),
-		Phase:    stringField(raw, "phase", "Phase"),
+		Endpoint:         stringField(raw, "endpoint"),
+		ExternalEndpoint: stringField(raw, "external_endpoint", "externalEndpoint"),
+		NodePort:         int32(intField(raw, "node_port", "nodePort")),
+		Phase:            stringField(raw, "phase", "Phase"),
 	}
+}
+
+func mapBuilderCredentials(raw map[string]any) *BuilderCredentials {
+	if raw == nil {
+		return &BuilderCredentials{}
+	}
+	return &BuilderCredentials{
+		CAPEM:         stringField(raw, "ca_pem", "caPem"),
+		ClientCertPEM: stringField(raw, "client_cert_pem", "clientCertPem"),
+		ClientKeyPEM:  stringField(raw, "client_key_pem", "clientKeyPem"),
+		Endpoint:      stringField(raw, "endpoint"),
+		ServerName:    stringField(raw, "server_name", "serverName"),
+		ExpiresAt:     intField(raw, "expires_at", "expiresAt"),
+	}
+}
+
+func boolField(raw map[string]any, keys ...string) (bool, bool) {
+	for _, k := range keys {
+		v, ok := raw[k]
+		if !ok || v == nil {
+			continue
+		}
+		switch b := v.(type) {
+		case bool:
+			return b, true
+		case float64:
+			return b != 0, true
+		}
+	}
+	return false, false
 }

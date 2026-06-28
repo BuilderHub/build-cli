@@ -142,11 +142,35 @@ Builders are created from templates (use `template create` first for custom reso
 ```bash
 builderhub builder list
 builderhub builder get <name>
-builderhub builder create <name> --mode sleepy|persistent --template-ref <template-name> [--replicas N] [--idle-timeout SEC] [--label k=v]
-builderhub builder update <name> [spec flags]
+builderhub builder create <name> --mode sleepy|persistent --template-ref <template-name> [--replicas N] [--idle-timeout SEC] [--label k=v] [--expose]
+builderhub builder update <name> [spec flags] [--expose]
 builderhub builder delete <name> [--yes]
 builderhub builder wake <name>
 ```
+
+#### Exposed builders and buildx
+
+Expose a builder to the internet (requires the API server to have `BUILDER_BASE_DOMAIN` configured):
+
+```bash
+builderhub builder create my-builder --mode sleepy --template-ref tpl --expose
+builderhub builder update my-builder --expose
+```
+
+Mint new mTLS client credentials or configure local docker buildx. These commands require a JWT session (`auth login`); API keys cannot call the credentials endpoint.
+
+```bash
+builderhub builder credentials my-builder [--dir PATH]
+builderhub builder connect my-builder [--default] [--force] [--buildx-name NAME] [--dir PATH]
+```
+
+One-shot create with buildx setup:
+
+```bash
+builderhub builder create my-builder --mode sleepy --template-ref tpl --connect --default
+```
+
+Each `credentials` or `connect` call mints a new client certificate. Previously issued certificates remain valid until they expire.
 
 ### Other
 

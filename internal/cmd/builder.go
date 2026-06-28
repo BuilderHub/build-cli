@@ -23,6 +23,8 @@ func builderCmd() *cobra.Command {
 		builderUpdateCmd(),
 		builderDeleteCmd(),
 		builderWakeCmd(),
+		builderCredentialsCmd(),
+		builderConnectCmd(),
 	)
 	return cmd
 }
@@ -33,6 +35,7 @@ type builderSpecFlags struct {
 	idleTimeout int32
 	templateRef string
 	labels      []string
+	expose      bool
 }
 
 func (f builderSpecFlags) spec() (client.BuilderSpec, error) {
@@ -61,6 +64,11 @@ func addBuilderSpecFlags(cmd *cobra.Command, f *builderSpecFlags) {
 	cmd.Flags().Int32Var(&f.idleTimeout, "idle-timeout", 0, "Idle timeout in seconds")
 	cmd.Flags().StringVar(&f.templateRef, "template-ref", "", "Template reference (required for create; use 'template list' to see options)")
 	cmd.Flags().StringSliceVar(&f.labels, "label", nil, "Label key=value (repeatable)")
+	cmd.Flags().BoolVar(&f.expose, "expose", false, "Expose builder to the internet via ingress")
+}
+
+func boolPtr(v bool) *bool {
+	return &v
 }
 
 func builderListCmd() *cobra.Command {
@@ -102,6 +110,7 @@ func builderGetCmd() *cobra.Command {
 
 func builderCreateCmd() *cobra.Command {
 	var specFlags builderSpecFlags
+	var connect, setDefault bool
 	cmd := &cobra.Command{
 		Use:   "create [name]",
 		Short: "Create a builder",
@@ -110,6 +119,9 @@ func builderCreateCmd() *cobra.Command {
 			org, err := requireOrganization()
 			if err != nil {
 				return err
+			}
+			if setDefault && !connect {
+				return fmt.Errorf("--default requires --connect")
 			}
 			if specFlags.mode == "" {
 				return fmt.Errorf("--mode is required")
@@ -124,14 +136,32 @@ func builderCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			expose := specFlags.expose || connect
+			if expose {
+				spec.Expose = boolPtr(true)
+			}
 			builder, err := rt().client.CreateBuilder(cmd.Context(), org, args[0], spec)
 			if err != nil {
 				return err
 			}
-			return output.PrintBuilder(cmd.OutOrStdout(), rt().outputFmt, builder)
+			if err := output.PrintBuilder(cmd.OutOrStdout(), rt().outputFmt, builder); err != nil {
+				return err
+			}
+			if connect {
+				if err := requireJWTSession(); err != nil {
+					return err
+				}
+				return connectBuilder(cmd.Context(), org, args[0], connectBuilderOpts{
+					wait:       true,
+					setDefault: setDefault,
+				})
+			}
+			return nil
 		},
 	}
 	addBuilderSpecFlags(cmd, &specFlags)
+	cmd.Flags().BoolVar(&connect, "connect", false, "After create, mint mTLS credentials and configure local docker buildx")
+	cmd.Flags().BoolVar(&setDefault, "default", false, "With --connect, set the buildx builder as default")
 	return cmd
 }
 
@@ -152,6 +182,9 @@ func builderUpdateCmd() *cobra.Command {
 			spec, err := specFlags.spec()
 			if err != nil {
 				return err
+			}
+			if cmd.Flags().Changed("expose") {
+				spec.Expose = boolPtr(specFlags.expose)
 			}
 			builder, err := rt().client.UpdateBuilder(cmd.Context(), org, args[0], spec)
 			if err != nil {
@@ -206,4 +239,75 @@ func builderWakeCmd() *cobra.Command {
 			return output.PrintBuilder(cmd.OutOrStdout(), rt().outputFmt, builder)
 		},
 	}
+}
+
+func builderCredentialsCmd() *cobra.Command {
+	var dir string
+	cmd := &cobra.Command{
+		Use:   "credentials [name]",
+		Short: "Generate new mTLS client credentials for an exposed builder",
+		Args:  cobra.ExactArgs(1),
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			return requireJWTSession()
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			org, err := requireOrganization()
+			if err != nil {
+				return err
+			}
+			creds, err := rt().client.GenerateBuilderCredentials(cmd.Context(), org, args[0])
+			if err != nil {
+				return err
+			}
+			if rt().outputFmt != output.FormatTable {
+				return output.Write(cmd.OutOrStdout(), rt().outputFmt, creds)
+			}
+			credDir := dir
+			if credDir == "" {
+				credDir, err = defaultBuilderCredDir(args[0])
+				if err != nil {
+					return err
+				}
+			}
+			paths, err := writeBuilderCredentials(credDir, creds)
+			if err != nil {
+				return err
+			}
+			printBuilderCredentialsTable(cmd.OutOrStdout(), creds, paths)
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&dir, "dir", "", "Directory to write credential files (default: config dir/builders/<name>)")
+	return cmd
+}
+
+func builderConnectCmd() *cobra.Command {
+	var dir, buildxName string
+	var setDefault, force bool
+	cmd := &cobra.Command{
+		Use:   "connect [name]",
+		Short: "Configure local docker buildx for a remote exposed builder",
+		Args:  cobra.ExactArgs(1),
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			return requireJWTSession()
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			org, err := requireOrganization()
+			if err != nil {
+				return err
+			}
+			return connectBuilder(cmd.Context(), org, args[0], connectBuilderOpts{
+				dir:        dir,
+				buildxName: buildxName,
+				setDefault: setDefault,
+				force:      force,
+				wait:       true,
+			})
+		},
+	}
+	cmd.Flags().StringVar(&dir, "dir", "", "Directory to write credential files (default: config dir/builders/<name>)")
+	cmd.Flags().StringVar(&buildxName, "buildx-name", "", "Local buildx builder name (default: builderhub-<name>)")
+	cmd.Flags().BoolVar(&setDefault, "default", false, "Set the buildx builder as default")
+	cmd.Flags().BoolVar(&force, "force", false, "Remove existing buildx builder with the same name before creating")
+	return cmd
 }
