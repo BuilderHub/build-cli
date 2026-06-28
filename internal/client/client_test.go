@@ -65,8 +65,12 @@ func TestListBuilders(t *testing.T) {
 			"builders": []any{
 				map[string]any{
 					"name": "b1",
-					"spec": map[string]any{"mode": "sleepy", "replicas": float64(1)},
-					"status": map[string]any{"phase": "Ready", "endpoint": "10.0.0.1"},
+					"spec": map[string]any{"mode": "sleepy", "replicas": float64(1), "expose": true},
+					"status": map[string]any{
+						"phase":              "Ready",
+						"endpoint":           "10.0.0.1",
+						"external_endpoint":  "tcp://b1.example.com:443",
+					},
 				},
 			},
 		})
@@ -83,6 +87,47 @@ func TestListBuilders(t *testing.T) {
 	}
 	if builders[0].Spec.Mode != "sleepy" {
 		t.Fatalf("mode = %q", builders[0].Spec.Mode)
+	}
+	if builders[0].Spec.Expose == nil || !*builders[0].Spec.Expose {
+		t.Fatalf("expose = %+v", builders[0].Spec.Expose)
+	}
+	if builders[0].Status.ExternalEndpoint != "tcp://b1.example.com:443" {
+		t.Fatalf("external_endpoint = %q", builders[0].Status.ExternalEndpoint)
+	}
+}
+
+func TestGenerateBuilderCredentials(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Fatalf("method = %q", r.Method)
+		}
+		if r.URL.Path != "/v1/namespaces/org-1/builders/b1/credentials" {
+			t.Fatalf("path = %q", r.URL.Path)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"ca_pem":          "ca-data",
+			"client_cert_pem": "cert-data",
+			"client_key_pem":  "key-data",
+			"endpoint":        "tcp://b1.example.com:443",
+			"server_name":     "b1.example.com",
+			"expires_at":      float64(1750000000),
+		})
+	}))
+	defer srv.Close()
+
+	c := New(srv.URL, &memStore{access: "test-token"}, "")
+	creds, err := c.GenerateBuilderCredentials(context.Background(), "org-1", "b1")
+	if err != nil {
+		t.Fatalf("GenerateBuilderCredentials: %v", err)
+	}
+	if creds.CAPEM != "ca-data" || creds.ClientCertPEM != "cert-data" || creds.ClientKeyPEM != "key-data" {
+		t.Fatalf("creds = %+v", creds)
+	}
+	if creds.Endpoint != "tcp://b1.example.com:443" || creds.ServerName != "b1.example.com" {
+		t.Fatalf("endpoint/server_name = %q / %q", creds.Endpoint, creds.ServerName)
+	}
+	if creds.ExpiresAt != 1750000000 {
+		t.Fatalf("expires_at = %d", creds.ExpiresAt)
 	}
 }
 
